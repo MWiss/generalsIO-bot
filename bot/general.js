@@ -38,8 +38,8 @@ module.exports = class GeneralBot {
   }
   // Runs all the functions that occur every turn of the game
   update (cities, generals, width, height, armies, terrain, turn, round) {
-    this.cities = cities
-    this.generals = generals,
+    this.cities = cities;
+    this.generals = generals;
     this.width = width;
     this.height = height;
     this.armies = armies;
@@ -59,18 +59,14 @@ module.exports = class GeneralBot {
   // Event Manager
   eventManager () {
     // log the round and turn of round
-    console.log("round: " + this.round + ", turn: " + this.getTurnOfRound());
+    console.log("round: " + this.round + ", turn: " + this.getTurnOfRound() + " -- " + this.turn);
     // Collect every three rounds
-    if (this.round % 3 && this.getTurnOfRound() === 0.5) {
+    if (!(this.round % 3) && this.getTurnOfRound() === 1) {
       this.behavior = "collect";
     }
     switch (this.round) {
-      case 1:
-        if (this.getTurnOfRound() === 0.5) { //0.5 is technically the first turn
-          // The first two terms in |map| are the dimensions.
-          this.width = this.map[0];
-          this.height = this.map[1];
-          this.size = this.width * this.height;
+      case 0:
+        if (this.getTurnOfRound() === 1) { //0.5 is technically the first turn
           // Set the home base as the current base
           this.generals.forEach( function(general) {
             if (general != -1) {
@@ -90,10 +86,13 @@ module.exports = class GeneralBot {
     var armyIndex = -1;
     switch (this.behavior) {
       case "spread":
-        armyIndex = this.getArmyLargest(this.getArmies());
+        armyIndex = this.getArmyNearestFarthest(this.getArmiesOfSize(this.getArmies(), 2, true), this.citiesControlled[0], true);
         break;
       case "collect":
         armyIndex = this.getArmyNearestFarthest(this.getArmiesInRange(this.getArmiesOfSize(this.getArmies(), 3, true), COLLECT_RANGE, this.citiesControlled[0]), this.citiesControlled[0], false);
+        break;
+      case "explore":
+        armyIndex = this.getArmyLargest(this.getArmies());
         break;
     }
     return armyIndex
@@ -128,7 +127,25 @@ module.exports = class GeneralBot {
         if (!endIndex) {
           console.log("Explore!");
           endIndex = this.armySpread(this.citiesControlled[0], this.startIndex);
-          this.behavior = "spread";
+          this.behavior = "explore";
+        }
+        break;
+
+      case "explore":
+        // If we are large enough, get a city, otherwise, continue exploring
+        var uncapturedCities = this.getUncapturedCities();
+        if (uncapturedCities.length > 0) {
+          // Get the nearest uncaptured city
+          var targetCity = this.getNearestCity(uncapturedCities, this.startIndex);
+          // If there are enough troops to move and take it over, do so
+          if (this.armies[this.startIndex] - this.getDistance(targetCity, this.startIndex) - 1 > this.armies[targetCity]) {
+            console.log("Taking Ciy: " + this.getCoordString(targetCity));
+            endIndex = this.armyTowards(targetCity, this.startIndex);
+          }
+        }
+        // If we are not getting a city, spread
+        if (endIndex === -1) {
+          endIndex = this.armySpread(this.citiesControlled[0], this.startIndex);
         }
         break;
     }
@@ -164,7 +181,7 @@ module.exports = class GeneralBot {
       // Add tile to list of dead ends
       this.deadEnds.push(army);
       // Move the army back, this is a dead end
-      //return this.armyTowards (from, army);
+      return this.armyTowards(from, army);
     }
   }
 
@@ -206,7 +223,7 @@ module.exports = class GeneralBot {
     this.armies.forEach(function(army, i) {
       var tile = this.terrain[i];
       if (owned && tile === this.playerIndex) { resultArmies.push(i); } // Gets my armies
-      else if (tile >= 0 && tile !== this.playerIndex) { resultArmies.push(i); } // Gets enemy armies
+      else if (!owned && tile >= 0 && tile !== this.playerIndex) { resultArmies.push(i); } // Gets enemy armies
     }, this)
     return resultArmies;
   }
@@ -281,7 +298,7 @@ module.exports = class GeneralBot {
    */
   checkMoveableReal (from, to) {
     return this.checkInsideMap(from, to)
-    && this.checkCityTakeable(from, to)
+    && this.checkCityTakeable(to)
     && !this.isMountain(to);
   }
 
@@ -293,14 +310,18 @@ module.exports = class GeneralBot {
 
 
   // checks to see if a city is takeable
-  checkCityTakeable (army, index) {
-    this.cities.forEach(function(city) {
-      // if the index is actually a cilistentoty
-      if (city === index) {
-        // return false if our army is too small
-        return this.armies[army]-1 > this.armies[city];
-      }
-    }, this)
+  checkCityTakeable (index) {
+    for (let city of this.cities) {
+        // Check if army big enough to take city
+        if (city != index) {
+            continue;
+        }
+
+        // If city not owned attack it no matter the cost
+        if (this.terrain[index] < 0) {
+            return this.armies[this.startIndex] - 4 > this.armies[city];
+        }
+    }
     return true;
   }
 
