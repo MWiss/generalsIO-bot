@@ -1,5 +1,5 @@
 'use strict';
-var BotTalk = require('./Talk.js');
+var BotTalk = require('./talk.js');
 
 // Terrain Constants.
 // Any tile with a nonnegative value is owned by the player corresponding to its value.

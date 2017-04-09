@@ -1,5 +1,5 @@
 var io = require('socket.io-client');
-var generalBot = require('./bot/GeneralBot.js');
+var generalBot = require('./bot/general');
 
 var socket = io('http://botws.generals.io');
 
