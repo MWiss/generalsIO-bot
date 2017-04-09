@@ -52,18 +52,20 @@ module.exports = class GeneralBot {
     // Get and move an army
     this.startIndex = this.selectArmy();
     this.endIndex = this.moveArmy();
-    console.log(this.behavior + "= " + this.startIndex + " : " + this.endIndex);
+    console.log(this.behavior + " from " + this.getCoordString(this.startIndex) + " to " + this.getCoordString(this.endIndex));
     this.socket.emit('attack', this.startIndex, this.endIndex);
   }
 
   // Event Manager
   eventManager () {
+    // log the round and turn of round
+    console.log("round: " + this.round + ", turn: " + this.getTurnOfRound());
     // Collect every three rounds
     if (this.round % 3 && this.getTurnOfRound() === 0.5) {
       this.behavior = "collect";
     }
     switch (this.round) {
-      case 0:
+      case 1:
         if (this.getTurnOfRound() === 0.5) { //0.5 is technically the first turn
           // The first two terms in |map| are the dimensions.
           this.width = this.map[0];
@@ -110,7 +112,7 @@ module.exports = class GeneralBot {
           var targetCity = this.getNearestCity(uncapturedCities, this.startIndex);
           // If there are enough troops to move and take it over, do so
           if (this.armies[this.startIndex] - this.getDistance(targetCity, this.startIndex) - 1 > this.armies[targetCity]) {
-            console.log("Taking Ciy: " + targetCity);
+            console.log("Taking Ciy: " + this.getCoordString(targetCity));
             endIndex = this.armyTowards(targetCity, this.startIndex);
           }
         }
@@ -121,7 +123,7 @@ module.exports = class GeneralBot {
         break;
 
       case "collect":
-        console.log("Collect to city: " + this.citiesControlled[0]);
+        console.log("Collect to city: " + this.getCoordString(this.citiesControlled[0]));
         endIndex = this.armyTowards(this.citiesControlled[0], this.startIndex);
         if (!endIndex) {
           console.log("Explore!");
@@ -162,15 +164,11 @@ module.exports = class GeneralBot {
       // Add tile to list of dead ends
       this.deadEnds.push(army);
       // Move the army back, this is a dead end
-      return this.armyTowards (from, army);
+      //return this.armyTowards (from, army);
     }
   }
 
-  /* A function that moves armies towards a point
-   * so that they can combine into one strong force
-   * to - the index to move towards
-   * army - the current amry we have select
-   */
+  // Move army towards an index
   armyTowards (to, army) {
     return this.shortestPath(army, (index) => index === to)[0];
   }
@@ -364,11 +362,9 @@ module.exports = class GeneralBot {
       const toRow = this.getRow(to);
 
       if (Math.abs(from-to) == 1) {
-          // console.log('toRow from Row', toRow, fromRow);
           return toRow == fromRow;
       }
       if (Math.abs(from-to) == this.width) {
-          // console.log('movCol, height', toRow, this.height);
           return toRow >= 0 && toRow < this.height;
       }
       throw new Error(`Assertion that ${to} (${this.getCoordString(to)}) is a neighbor of ${from} (${this.getCoordString(from)}) failed (fromRow=${fromRow}, toRow=${toRow})`);

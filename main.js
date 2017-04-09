@@ -21,7 +21,8 @@ var cities = [];
 var map = [];
 // Other
 var countDown = 5; 						// Used to count down before joining a game
-socket.on('connect', function() {
+
+socket.on('connect', () => {
 	console.log('Connected to server.'.green);
 	// Set the id for the bot.
 	user_id = process.env.BOT_USER_ID;
@@ -33,7 +34,7 @@ socket.on('connect', function() {
 	rl.prompt();
 });
 
-socket.on('disconnect', function() {
+socket.on('disconnect', () => {
 	console.error('Disconnected from server.'.red);
 	process.exit(1);
 });
@@ -64,7 +65,7 @@ rl.on('line', (line) => {
 	}
 });
 
-socket.on('game_start', function(data) {
+socket.on('game_start', (data) => {
 	// Get ready to start playing the game.
 	chatRoom = data.chat_room; // Used for chatting
 	myBot = new GeneralBot(socket, data.chat_room, data.playerIndex); // Initialize the bot
@@ -75,7 +76,7 @@ socket.on('game_start', function(data) {
 	myBot.talk.getGreeting();
 });
 
-socket.on('game_update', function(data) {
+socket.on('game_update', (data) => {
 	// Patch the city and map diffs into our local variables.
 	cities = patch(cities, data.cities_diff);
 	map = patch(map, data.map_diff);
@@ -95,12 +96,12 @@ socket.on('game_update', function(data) {
 
 	// Get the current round and turn
 	var turn = Math.ceil(data.turn/2); // there are two mini-turns in each actually turn
-	var round = Math.ceil(data.turn/25); // each round has 25 turns
+	var round = Math.floor(turn/25); // each round has 25 turns
 	// Update the bot
 	myBot.update(cities, data.generals, width, height, armies, terrain, turn, round);
 });
 
-socket.on('game_lost', function (data) {
+socket.on('game_lost', (data) => {
 	myBot.talk.onLose();
 	console.log("Game Lost!")
 	console.log("Replay URL:" + replay_url)
@@ -109,7 +110,7 @@ socket.on('game_lost', function (data) {
 	startGame();
 });
 
-socket.on('game_won', function (data) {
+socket.on('game_won', (data) => {
 	myBot.talk.onWin();
 	console.log("Game Won!")
 	console.log("Replay URL:" + replay_url)
