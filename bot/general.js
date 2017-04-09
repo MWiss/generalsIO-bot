@@ -1,5 +1,5 @@
 'use strict';
-var BotTalk = require('./talk.js');
+const BotTalk = require('./talk.js');
 
 // Terrain Constants.
 // Any tile with a nonnegative value is owned by the player corresponding to its value.
@@ -19,7 +19,7 @@ const DEFENSE_RANGE = 7;
  */
 module.exports = class GeneralBot {
   constructor(socket, chatRoom, playerIndex) {
-    this.talk = new BotTalk(); // Add capability to emote
+    this.talk = new BotTalk(socket, chatRoom); // Add capability to emote
     this.socket = socket;
     this.chatRoom = chatRoom
     // Game data.
@@ -37,9 +37,15 @@ module.exports = class GeneralBot {
     this.behavior = "spread"; //spead, collect, explore
   }
   // Runs all the functions that occur every turn of the game
-  update (data) {
-    // Update the game data
-    this.dataUpdate(data);
+  update (cities, generals, width, height, armies, terrain, turn, round) {
+    this.cities = cities
+    this.generals = generals,
+    this.width = width;
+    this.height = height;
+    this.armies = armies;
+    this.terrain = terrain;
+    this.turn = turn;
+    this.round = round;
     // Run the event Manager
     this.eventManager();
 
@@ -373,14 +379,9 @@ module.exports = class GeneralBot {
     return `<${this.getCol(index)}, ${this.getRow(index)}>`;
   }
 
-  getTurnReal () {
-    // Each turn displayed in game has two sub-turns
-    return this.turn/2;
-  }
-
   getTurnOfRound () {
     // Each turn displayed in game has two sub-turns
-    return this.getTurnReal() - (this.round*25);
+    return this.turn - (this.round*25);
   }
   /** Written by Nathan Brink
    * https://github.com/kpgbrink/generalsIO_Bot_KPG/blob/master/imov.js
@@ -448,45 +449,4 @@ module.exports = class GeneralBot {
       }
       return null;
   }
-
-  // Updates the game data, cleans up the update function
-  dataUpdate (data) {
-   // Patch the city and map diffs into our local variables.
-   this.cities = this.patch(this.cities, data.cities_diff);
-   this.map = this.patch(this.map, data.map_diff);
-   // update generals and turn
-   this.generals = data.generals;
-   this.turn = data.turn;
-   // update round
-   if (this.getTurnReal() % 25 === 0){
-     this.round++;
-     console.log("round: " + this.round);
-   }
-
-   // The next |size| terms are army values.
-   // armies[0] is the top-left corner of the map.
-   this.armies = this.map.slice(2, this.size + 2);
-
-   // The last |size| terms are terrain values.
-   // terrain[0] is the top-left corner of the map.
-   this.terrain = this.map.slice(this.size + 2, this.size + 2 + this.size);
- }
-
- // Path function bundled with default bot
- patch (old, diff) {
-  var out = [];
-  var i = 0;
-  while (i < diff.length) {
-    if (diff[i]) {  // matching
-      Array.prototype.push.apply(out, old.slice(out.length, out.length + diff[i]));
-    }
-    i++;
-    if (i < diff.length && diff[i]) {  // mismatching
-      Array.prototype.push.apply(out, diff.slice(i + 1, i + 1 + diff[i]));
-      i += diff[i];
-    }
-    i++;
-  }
-  return out;
- }
 }

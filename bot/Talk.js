@@ -1,7 +1,9 @@
 'use strict';
 
 module.exports = class Talk {
-  constructor () {
+  constructor (socket, chatRoom) {
+    this.socket = socket;
+    this.chatRoom = chatRoom;
     this.greet = [ // different greetings that can be used once a game starts
       "why do I always have to play bad people?",
       "good luck",
@@ -22,14 +24,14 @@ module.exports = class Talk {
     ]
   }
   getGreeting () {
-    return this.greet[Math.floor(Math.random()*this.greet.length)];
+    this.socket.emit('chat_message', this.chatRoom, this.greet[Math.floor(Math.random()*this.greet.length)]);
   }
 
   onLose () {
-    return this.lose[Math.floor(Math.random()*this.lose.length)];
+    this.socket.emit('chat_message', this.chatRoom, this.lose[Math.floor(Math.random()*this.lose.length)]);
   }
 
   onWin () {
-    return this.win[Math.floor(Math.random()*this.win.length)];
+    this.socket.emit('chat_message', this.chatRoom, this.win[Math.floor(Math.random()*this.win.length)]);
   }
 }
