@@ -11,7 +11,7 @@ const TILE_FOG_OBSTACLE = -4; // Cities and Mountains show up as Obstacles in th
 
 // Bot constants
 const COLLECT_RANGE = 3;
-const DEFENSE_RANGE = 7;
+const DEFENSE_RANGE = 5;
 
 /* GeneralBot
  * Describe plans of execution
@@ -30,7 +30,8 @@ module.exports = class GeneralBot {
     this.turn = 0;
     this.round = 0;
     // Bot data
-    this.citiesControlled = []; // THe indicies of the cities that we have captured, index 0 will always be a general
+    this.citiesControlled = []; // The indicies of the cities that we have captured, index 0 will always be a general
+    this.activeCity = 0; // The city that have focus on
     this.deadEnds = []; // Stored indicies of unwanted tiles, ones that lead to dead ends
     this.startIndex = 0;
     this.endIndex = 0;
@@ -48,6 +49,20 @@ module.exports = class GeneralBot {
     this.round = round;
     // Run the event Manager
     this.eventManager();
+
+    // Update the active city if there are any threats
+    var enemies = this.getArmies(false); // Get any enemy tiles we see
+    var smallestDist = Infinity;
+    enemies.forEach(function(enemy) {
+      var nearestCity = this.getNearestCity(this.citiesControlled, enemy);
+      var dist = this.getDistance(nearestCity, enemy);
+      if (dist < smallestDist) {
+        this.activeCity = this.citiesControlled.indexOf(nearestCity);
+        smallestDist = dist;
+      }
+    }, this);
+    console.log("Active City: " + this.getCoordString(this.citiesControlled[this.activeCity]));
+
 
     // Get and move an army
     this.startIndex = this.selectArmy();
@@ -86,10 +101,10 @@ module.exports = class GeneralBot {
     var armyIndex = -1;
     switch (this.behavior) {
       case "spread":
-        armyIndex = this.getArmyNearestFarthest(this.getArmiesOfSize(this.getArmies(), 2, true), this.citiesControlled[0], true);
+        armyIndex = this.getArmyNearestFarthest(this.getArmiesOfSize(this.getArmies(), 2, true), this.citiesControlled[this.activeCity], true);
         break;
       case "collect":
-        armyIndex = this.getArmyNearestFarthest(this.getArmiesInRange(this.getArmiesOfSize(this.getArmies(), 3, true), COLLECT_RANGE, this.citiesControlled[0]), this.citiesControlled[0], false);
+        armyIndex = this.getArmyNearestFarthest(this.getArmiesInRange(this.getArmiesOfSize(this.getArmies(), 3, true), COLLECT_RANGE, this.citiesControlled[this.activeCity]), this.citiesControlled[this.activeCity], false);
         break;
       case "explore":
         armyIndex = this.getArmyLargest(this.getArmies());
@@ -104,29 +119,15 @@ module.exports = class GeneralBot {
     // Will flesh this function out later
     switch (this.behavior) {
       case "spread":
-        // If we are large enough, get a city, otherwise, continue exploring
-        var uncapturedCities = this.getUncapturedCities();
-        if (uncapturedCities.length > 0) {
-          // Get the nearest uncaptured city
-          var targetCity = this.getNearestCity(uncapturedCities, this.startIndex);
-          // If there are enough troops to move and take it over, do so
-          if (this.armies[this.startIndex] - this.getDistance(targetCity, this.startIndex) - 1 > this.armies[targetCity]) {
-            console.log("Taking Ciy: " + this.getCoordString(targetCity));
-            endIndex = this.armyTowards(targetCity, this.startIndex);
-          }
-        }
-        // If we are not getting a city, spread
-        if (endIndex === -1) {
-          endIndex = this.armySpread(this.citiesControlled[0], this.startIndex);
-        }
+        endIndex = this.armySpread(this.citiesControlled[this.activeCity], this.startIndex);
         break;
 
       case "collect":
-        console.log("Collect to city: " + this.getCoordString(this.citiesControlled[0]));
-        endIndex = this.armyTowards(this.citiesControlled[0], this.startIndex);
-        if (!endIndex) {
+        console.log("Collect to city: " + this.getCoordString(this.citiesControlled[this.activeCity]));
+        endIndex = this.armyTowards(this.citiesControlled[this.activeCity], this.startIndex);
+        if (endIndex === -1) {
           console.log("Explore!");
-          endIndex = this.armySpread(this.citiesControlled[0], this.startIndex);
+          endIndex = this.armySpread(this.citiesControlled[this.activeCity], this.startIndex);
           this.behavior = "explore";
         }
         break;
@@ -141,11 +142,17 @@ module.exports = class GeneralBot {
           if (this.armies[this.startIndex] - this.getDistance(targetCity, this.startIndex) - 1 > this.armies[targetCity]) {
             console.log("Taking Ciy: " + this.getCoordString(targetCity));
             endIndex = this.armyTowards(targetCity, this.startIndex);
+            if (endIndex === targetCity) {
+              // add the new city to controlled cities
+              this.citiesControlled.push(targetCity);
+              this.activeCity = this.citiesControlled.indexOf(targetCity);
+              this.behavior = "spread";
+            }
           }
         }
         // If we are not getting a city, spread
         if (endIndex === -1) {
-          endIndex = this.armySpread(this.citiesControlled[0], this.startIndex);
+          endIndex = this.armySpread(this.citiesControlled[this.activeCity], this.startIndex);
         }
         break;
     }
@@ -187,7 +194,8 @@ module.exports = class GeneralBot {
 
   // Move army towards an index
   armyTowards (to, army) {
-    return this.shortestPath(army, (index) => index === to)[0];
+    var index = this.shortestPath(army, (index) => index === to);
+    return (index) ? index[0] : -1;
   }
 
   //Gets the nearest city to and index
